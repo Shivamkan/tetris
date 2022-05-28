@@ -1,6 +1,7 @@
-import pygame
-import json
 import copy
+import json
+import pygame
+from random import randint
 
 screen_size = (300,600)
 screen = pygame.display.set_mode(screen_size)
@@ -82,6 +83,29 @@ class game_board:
 	def get_current_grid(self):
 		return self.grid
 
+class Game:
+	def __init__(self):
+		self.tetrominoes = tetrominoes()
+		self.game_board = game_board()
+		self.current_piece = randint(0,self.tetrominoes.get_total_pieces())
+		self.next_pieces, self.packet = self.make_next_piece([],[])
+		self.pieces_pos = [4,-2]
+		self.rotation = 0
+
+	def make_next_piece(self, packet_in:list, next_pieces_in:list):
+		next_pieces = copy.deepcopy(next_pieces_in)
+		packet = copy.deepcopy(packet_in)
+		while len(next_pieces)<=6:
+			if len(packet) == 0:
+				packet = copy.deepcopy(self.tetrominoes.index)
+			next_pieces.append(packet[randint(0, len(packet)-1)])
+			packet.remove(next_pieces[-1])
+		if len(packet) == 0:
+			packet = copy.deepcopy(self.tetrominoes.index)
+		return next_pieces, packet
+
+
+
 def draw(screen, screen_size, board, board_size, colors):
 	cell_size = (screen_size[0] // board_size[0], screen_size[1] // board_size[1])
 	for x in range(board_size[0]):
@@ -92,7 +116,7 @@ def draw(screen, screen_size, board, board_size, colors):
 
 	for x in range(board_size[0]+1):
 		pygame.draw.line(screen, (0,0,0), (cell_size[0]*x, 0), (cell_size[0]*x, cell_size[1]*board_size[1]))
-	for y in range(board_size[0]+1):
+	for y in range(board_size[1]+1):
 		pygame.draw.line(screen, (0,0,0), (0, cell_size[1]*y), (cell_size[0]*board_size[0], cell_size[1]*y))
 
 def event_handel():
@@ -108,18 +132,17 @@ tetrominoes = tetrominoes()
 index = 0
 rotation = 0
 
+
+
 clock = pygame.time.Clock()
 while True:
-	clock.tick(0.5)
+	clock.tick(60)
 	screen.fill((100, 100, 100))
-	rotation += 1
-	if rotation > 3:
-		rotation = 0
-		index += 1
-		index %= tetrominoes.get_total_pieces()
-	# if index >= tetrominoes.get_total_pieces():
-	# 	rotation += 1
-	# 	index = 0
+	# rotation += 1
+	# if rotation > 3:
+	# 	rotation = 0
+	# 	index += 1
+	# 	index %= tetrominoes.get_total_pieces()
 	piece_shape = tetrominoes.get_piece(index, rotation)
 	if game_board.is_valid_pos(piece_shape, (5,10)):
 		draw_grid = game_board.to_draw_grid(piece_shape, (5,10))
