@@ -104,7 +104,10 @@ class Game:
 	def __init__(self, board_size):
 		self.board_size = board_size
 		self.tetrominoes = tetrominoes()
-		self.game_board = game_board(*board_size)
+		self.init()
+        
+	def init(self):
+		self.game_board = game_board(*self.board_size)
 		self.current_piece = randint(0, self.tetrominoes.get_total_pieces()-1)
 		self.next_pieces, self.packet = self.make_next_piece([], [])
 		self.pieces_pos = [4, -1]
@@ -152,6 +155,7 @@ class Game:
 					self.next_pieces, self.packet = self.make_next_piece(self.packet, self.next_pieces)
 					self.pieces_pos = [4,-1]
 					if y <= 0:
+						self.init()
 						print("game_over")
 
 	def get_draw_grid(self):
