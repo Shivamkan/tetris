@@ -127,6 +127,8 @@ class Game:
 
 	def move_piece(self, inputs: dict):
 		touching = 0
+		rotation = self.rotation + inputs["rotation"]
+		rotation %= 4
 		if inputs["drop"]:
 			x = self.pieces_pos[0]
 			y = self.pieces_pos[1]
@@ -134,7 +136,7 @@ class Game:
 				if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, self.rotation), (x, y)):
 					y += 1
 				else:
-					self.game_board.place_in_board(self.tetrominoes.get_piece(self.current_piece, self.rotation),
+					self.game_board.place_in_board(self.tetrominoes.get_piece(self.current_piece, rotation),
 					                               (x, y - 1))
 					touching = 1
 					self.current_piece = self.next_pieces[0]
@@ -145,10 +147,11 @@ class Game:
 		else:
 			x = self.pieces_pos[0] + (inputs["right"] - inputs["left"])
 			y = self.pieces_pos[1] + inputs["down"]
-			if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, self.rotation), (x, y)):
+			if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, rotation), (x, y)):
 				self.pieces_pos = [x, y]
+				self.rotation = rotation
 			else:
-				if x == self.pieces_pos[0]:
+				if y != self.pieces_pos[1]:
 					self.game_board.place_in_board(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
 					                               self.pieces_pos)
 					self.current_piece = self.next_pieces[0]
@@ -177,8 +180,7 @@ class Game:
 			if is_commplete_line:
 				to_remove.append(y)
 		if to_remove:
-			for x in range(len(to_remove), 0, -1):
-				x -= 1
+			for x in range(len(to_remove)):
 				for i in range(self.board_size[0]):
 					grid[i].pop(to_remove[x])
 					grid[i].insert(0, 0)
@@ -210,7 +212,7 @@ def event_handel():
 		das_timer = 0
 	event = pygame.event.get()
 	keys = pygame.key.get_pressed()
-	inputs = {"left": 0, "right": 0, "down": 0, "drop": 0}
+	inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0}
 	for e in event:
 		if e.type == pygame.QUIT:
 			pygame.quit()
@@ -218,6 +220,10 @@ def event_handel():
 		if e.type == pygame.KEYDOWN:
 			if e.key == pygame.K_UP or e.key == pygame.K_w:
 				inputs["drop"] = 1
+			if e.key == pygame.K_q or e.key == pygame.K_KP0:
+				inputs["rotation"] -= 1
+			if e.key == pygame.K_e or e.key == pygame.K_KP_PERIOD:
+				inputs["rotation"] += 1
 		if e.type == pygame.KEYUP:
 			das_timer = 0
 			das_mode = 0
