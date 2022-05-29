@@ -141,6 +141,7 @@ class Game:
 					self.next_pieces.pop(0)
 					self.next_pieces, self.packet = self.make_next_piece(self.packet, self.next_pieces)
 					self.pieces_pos = [4,-1]
+					self.clear_line()
 		else:
 			x = self.pieces_pos[0] + (inputs["right"] - inputs["left"])
 			y = self.pieces_pos[1] + inputs["down"]
@@ -154,6 +155,7 @@ class Game:
 					self.next_pieces.pop(0)
 					self.next_pieces, self.packet = self.make_next_piece(self.packet, self.next_pieces)
 					self.pieces_pos = [4,-1]
+					self.clear_line()
 					if y <= 0:
 						self.init()
 						print("game_over")
@@ -162,6 +164,28 @@ class Game:
 		grid = self.game_board.to_draw_grid(self.tetrominoes.get_piece(self.current_piece, self.rotation), self.pieces_pos)
 		colors = self.tetrominoes.get_colors()
 		return grid, self.board_size, colors
+
+	def clear_line(self):
+		to_remove = []
+		grid = copy.deepcopy(self.game_board.grid)
+		for y in range(self.board_size[1]):
+			is_commplete_line = 1
+			for x in range(self.board_size[0]):
+				if not grid[x][y]:
+					is_commplete_line = 0
+					break
+			if is_commplete_line:
+				to_remove.append(y)
+		if to_remove:
+			for x in range(len(to_remove), 0, -1):
+				x -= 1
+				for i in range(self.board_size[0]):
+					grid[i].pop(to_remove[x])
+					grid[i].insert(0, 0)
+
+		self.game_board.grid = grid
+
+
 
 
 def draw(screen, screen_size, board, board_size, colors):
