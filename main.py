@@ -112,11 +112,12 @@ class Game:
         self.next_pieces, self.packet = self.make_next_piece([], [])
         self.pieces_pos = [4, -1]
         self.rotation = 0
+        self.hold_piece = -1
 
     def make_next_piece(self, packet_in: list, next_pieces_in: list):
         next_pieces = copy.deepcopy(next_pieces_in)
         packet = copy.deepcopy(packet_in)
-        while len(next_pieces) <= 6:
+        while len(next_pieces) <= 3:
             if len(packet) == 0:
                 packet = list(range(self.tetrominoes.get_total_pieces()))
             next_pieces.append(packet[randint(0, len(packet) - 1)])
@@ -129,6 +130,24 @@ class Game:
         touching = 0
         rotation = self.rotation + inputs["rotation"]
         rotation %= 4
+        if inputs["switch hold"]:
+            x = self.pieces_pos[0]
+            y = self.pieces_pos[1]
+            print(self.hold_piece)
+            if self.hold_piece == -1:
+                hold_piece = self.current_piece
+                temp = self.next_pieces[0]
+                if self.game_board.is_valid_pos(self.tetrominoes.get_piece(temp, self.rotation), (x, y)):
+                    self.hold_piece = self.current_piece
+                    self.current_piece = self.next_pieces[0]
+
+            else:
+                hold_piece = self.current_piece
+                temp = self.hold_piece
+                if self.game_board.is_valid_pos(self.tetrominoes.get_piece(temp, self.rotation), (x, y)):
+                    self.hold_piece = hold_piece
+                    self.current_piece = temp
+
         if inputs["drop"]:
             x = self.pieces_pos[0]
             y = self.pieces_pos[1]
@@ -147,21 +166,25 @@ class Game:
         else:
             x = self.pieces_pos[0] + (inputs["right"] - inputs["left"])
             y = self.pieces_pos[1] + inputs["down"]
-            if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, rotation), (x, y)):
-                self.pieces_pos = [x, y]
+            if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, rotation), self.pieces_pos):
                 self.rotation = rotation
+            if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
+                                                    (x, self.pieces_pos[1])):
+               self.pieces_pos[0] = x
+            if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
+                                            (self.pieces_pos[0], y)):
+                self.pieces_pos[1] = y
             else:
-                if y != self.pieces_pos[1]:
-                    self.game_board.place_in_board(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
-                                                   self.pieces_pos)
-                    self.current_piece = self.next_pieces[0]
-                    self.next_pieces.pop(0)
-                    self.next_pieces, self.packet = self.make_next_piece(self.packet, self.next_pieces)
-                    self.pieces_pos = [4,-1]
-                    self.clear_line()
-                    if y <= 0:
-                        self.init()
-                        print("game_over")
+                self.game_board.place_in_board(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
+                                               self.pieces_pos)
+                self.current_piece = self.next_pieces[0]
+                self.next_pieces.pop(0)
+                self.next_pieces, self.packet = self.make_next_piece(self.packet, self.next_pieces)
+                self.pieces_pos = [4, -1]
+                self.clear_line()
+                if y <= 0:
+                    self.init()
+                    print("game_over")
 
     def get_draw_grid(self):
         grid = self.game_board.to_draw_grid(self.tetrominoes.get_piece(self.current_piece, self.rotation), self.pieces_pos)
@@ -187,24 +210,32 @@ class Game:
 
         self.game_board.grid = grid
 
+    def get_next_pieces(self):
+        next = []
+        for x in range(len(self.next_pieces)):
+            next.append(self.tetrominoes.get_piece(self.next_pieces[x], 0))
+
+    def get_hold(self):
+        if self.hold_piece == -1:
+            return 0,(0,0,0)
+        return self.tetrominoes.get_piece(self.hold_piece, 0), self.tetrominoes.get_colors()[self.tetrominoes.index[self.hold_piece]]
 
 
-
-def draw(screen_size, board, board_size, colors):
-    temp = min(screen_size[0] // board_size[0], screen_size[1] // board_size[1])
-    cell_size = (temp, temp)
-    screen = pygame.Surface((temp * board_size[0] + 1,temp * board_size[1]))
+def draw(screen_size, board, board_size, colors, cell_size):
+    screen = pygame.Surface(screen_size)
     screen.fill((100, 100, 100))
+    pygame.draw.rect(screen, (255, 255, 255), (0, 0, screen_size[0], screen_size[1]), cell_size)
+    pygame.draw.rect(screen, (255, 0, 0), (0, 0, screen_size[0], screen_size[1]), cell_size // 2)
     for x in range(board_size[0]):
         for y in range(board_size[1]):
             if board[x][y]:
-                rect = pygame.Rect((cell_size[0] * x, cell_size[1] * y), cell_size)
+                rect = pygame.Rect((cell_size * (x+1), cell_size * (y+1)), (cell_size, cell_size))
                 pygame.draw.rect(screen, colors[board[x][y]], rect)
 
     for x in range(board_size[0] + 1):
-        pygame.draw.line(screen, (0, 0, 0), (cell_size[0] * x, 0), (cell_size[0] * x, cell_size[1] * board_size[1]))
+        pygame.draw.line(screen, (0, 0, 0), (cell_size * (x + 1), cell_size), (cell_size * (x + 1), cell_size * (board_size[1] + 1)))
     for y in range(board_size[1] + 1):
-        pygame.draw.line(screen, (0, 0, 0), (0, cell_size[1] * y), (cell_size[0] * board_size[0], cell_size[1] * y))
+        pygame.draw.line(screen, (0, 0, 0), (cell_size, cell_size * (y + 1)), (cell_size * (board_size[0] + 1), cell_size * (y + 1)))
     return screen
 
 
@@ -215,7 +246,7 @@ def event_handel():
         das_timer = 0
     event = pygame.event.get()
     keys = pygame.key.get_pressed()
-    inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0}
+    inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0, "switch hold": 0}
     for e in event:
         if e.type == pygame.QUIT:
             pygame.quit()
@@ -227,28 +258,22 @@ def event_handel():
                 inputs["rotation"] -= 1
             if e.key == pygame.K_e or e.key == pygame.K_KP_PERIOD:
                 inputs["rotation"] += 1
+            if e.key == pygame.K_SPACE or e.key == pygame.K_KP_ENTER:
+                inputs["switch hold"] = 1
         if e.type == pygame.KEYUP:
             das_timer = 0
             das_mode = 0
 
     if (keys[pygame.K_DOWN] or keys[pygame.K_s]) and das_timer == 0:
         inputs["down"] = 1
-        if das_mode == 0:
-            das_timer = 30
-            das_mode = 1
-        else:
-            das_timer = 6
 
     if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and das_timer == 0:
         inputs["left"] = 1
-        if das_mode == 0:
-            das_timer = 30
-            das_mode = 1
-        else:
-            das_timer = 6
 
     if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and das_timer == 0:
         inputs["right"] = 1
+
+    if inputs["right"] or inputs["left"] or inputs["down"]:
         if das_mode == 0:
             das_timer = 30
             das_mode = 1
@@ -258,22 +283,35 @@ def event_handel():
     return inputs
 
 
-def draw_left_ui(side_size, hold, colors):
+def draw_left_ui(side_size, hold, color, cell_size):
     side = pygame.Surface(side_size)
     side.fill((50,50,50))
-    buffer = side_size[0]//10
-    cell_size = side_size[0]//5
+    buffer = (side_size[0] - cell_size * 4)
+    #outline
     outline_rect = pygame.Rect((buffer, buffer), (cell_size*4+buffer//2, cell_size*4+buffer//2))
-    outline_rect.center = (cell_size*5//2, cell_size*5//2)
-    pygame.draw.rect(side,(200, 200, 200), outline_rect, buffer//2)
+    outline_rect.center = (side_size[0]//2, side_size[0]//2)
+    pygame.draw.rect(side, (200, 200, 200), outline_rect, cell_size//2)
+    pygame.draw.rect(side, (255, 0, 0), outline_rect, cell_size // 4)
+
+    #draw hold
+    outline_rect = pygame.Rect((0, 0), (cell_size * 4, cell_size * 4))
+    outline_rect.center = (side_size[0] // 2, side_size[0] // 2)
+    piece = pygame.Surface((cell_size*4, cell_size*4))
+    piece.fill((100, 100, 100))
+    if hold != 0:
+        for x in range(len(hold)):
+            for y in range(len(hold[0])):
+                if hold[x][y]:
+                    rect = pygame.Rect((cell_size * (x), cell_size * (y)), (cell_size, cell_size))
+                    pygame.draw.rect(piece, color, rect)
+    side.blit(piece, outline_rect)
     return side
 
 def calculate_all_sizes(screen_size, board_size):
-    cell_size = min(screen_size[0] // board_size[0], screen_size[1] // board_size[1])
-    side_size = (cell_size * 5, cell_size * board_size[1])
-    game_size = (cell_size * board_size[0], cell_size * board_size[1])
-    side_buffer = (screen_size[0] - (game_size[0] + (side_size[0]*2)))//2, screen_size[1]
-    return side_size, game_size, side_buffer
+    cell_size = min(screen_size[0] // (board_size[0]+12), screen_size[1] // (board_size[1]+2))
+    game_size = (cell_size * (board_size[0]+2), cell_size * (board_size[1]+2))
+    side_size = ((screen_size[0] - game_size[0])//2, cell_size * (board_size[1]+2))
+    return side_size, game_size, cell_size
 
 # game_board = game_board(10,20)
 # tetrominoes = tetrominoes()
@@ -281,14 +319,14 @@ def calculate_all_sizes(screen_size, board_size):
 # rotation = 0
 
 game = Game((10, 20))
-side_size, game_size, side_buffer = calculate_all_sizes(screen_size, (10, 20))
+side_size, game_size, cell_size = calculate_all_sizes(screen_size, (10, 20))
 das_mode = 0  # 0 = wait mode, 1 = quick tap
 das_timer = 0
 clock = pygame.time.Clock()
 
 while True:
     clock.tick(60)
-    screen.fill((0, 0, 0))
+    screen.fill((50, 50, 50))
     # rotation += 1
     # if rotation > 3:
     # 	rotation = 0
@@ -302,8 +340,9 @@ while True:
     # draw(screen, screen_size, draw_grid, game_board.size, tetrominoes.get_colors())
     inputs = event_handel()
     game.move_piece(inputs)
-    left_ui = draw_left_ui(side_size, [0], 0)
-    game_screen = draw(game_size, *game.get_draw_grid())
-    screen.blit(left_ui, (side_buffer[0], 0))
-    screen.blit(game_screen, (side_size[0]+side_buffer[0], 0))
+    left_ui = draw_left_ui(side_size, *game.get_hold(), cell_size)
+    game_screen = draw(game_size, *game.get_draw_grid(), cell_size)
+    screen.blit(left_ui, (0, 0))
+    screen.blit(game_screen, (side_size[0], 0))
+    screen.blit(left_ui, (side_size[0]+game_size[0], 0))
     pygame.display.flip()
