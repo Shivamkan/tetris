@@ -5,6 +5,8 @@ from random import randint
 
 screen_size = (700, 600)
 screen = pygame.display.set_mode(screen_size)
+drop_timer = pygame.USEREVENT
+drop_speed = 1
 
 
 class tetrominoes:
@@ -165,7 +167,7 @@ class Game:
                     self.clear_line()
         else:
             x = self.pieces_pos[0] + (inputs["right"] - inputs["left"])
-            y = self.pieces_pos[1] + inputs["down"]
+            y = self.pieces_pos[1] + inputs["down"] + inputs["fall"]
             if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, rotation), self.pieces_pos):
                 self.rotation = rotation
             if self.game_board.is_valid_pos(self.tetrominoes.get_piece(self.current_piece, self.rotation), \
@@ -239,6 +241,8 @@ def draw(screen_size, board, board_size, colors, cell_size):
     return screen
 
 
+pygame.time.set_timer(drop_timer, drop_speed * 1000)
+# drop_speed is in seconds and the second argument is in milliseconds
 def event_handel():
     global das_mode, das_timer
     das_timer -= 1
@@ -246,7 +250,7 @@ def event_handel():
         das_timer = 0
     event = pygame.event.get()
     keys = pygame.key.get_pressed()
-    inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0, "switch hold": 0}
+    inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0, "switch hold": 0, "fall": 0}
     for e in event:
         if e.type == pygame.QUIT:
             pygame.quit()
@@ -263,6 +267,8 @@ def event_handel():
         if e.type == pygame.KEYUP:
             das_timer = 0
             das_mode = 0
+        if e.type == drop_timer:
+            inputs["fall"] = 1
 
     if (keys[pygame.K_DOWN] or keys[pygame.K_s]) and das_timer == 0:
         inputs["down"] = 1
