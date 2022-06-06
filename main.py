@@ -3,10 +3,13 @@ import json
 import pygame
 from random import randint
 
-screen_size = (700, 600)
+setings = json.load(open("settings.json"))
+
+screen_size = (setings["size"])
 screen = pygame.display.set_mode(screen_size)
 drop_timer = pygame.USEREVENT
-drop_speed = 1
+drop_speed = setings["speed"]
+pygame.key.set_repeat(setings["das_wait"], setings["das_speed"])
 
 
 class tetrominoes:
@@ -33,7 +36,6 @@ class tetrominoes:
 
     def get_total_pieces(self):
         return len(self.index)
-
 
 class game_board:
     def __init__(self, x, y):
@@ -101,7 +103,6 @@ class game_board:
     def get_current_grid(self):
         return self.grid
 
-
 class Game:
     def __init__(self, board_size):
         self.board_size = board_size
@@ -115,6 +116,9 @@ class Game:
         self.pieces_pos = [4, -1]
         self.rotation = 0
         self.hold_piece = -1
+        self.score = 0
+        self.line_cleared = 0
+        self.level = 0
 
     def make_next_piece(self, packet_in: list, next_pieces_in: list):
         next_pieces = copy.deepcopy(next_pieces_in)
@@ -203,6 +207,24 @@ class Game:
             if is_commplete_line:
                 to_remove.append(y)
         if to_remove:
+            if len(to_remove) >= 4:
+                self.score += setings["score"][3]
+            else:
+                self.score += setings["score"][len(to_remove)-1]
+            self.line_cleared += len(to_remove)
+            print("line cleared, the number of line cleared is:", self.line_cleared)
+            if self.level >= 10:
+                while self.line_cleared >= setings["lines_before_next_level"][9]:
+                    self.line_cleared -= setings["lines_before_next_level"][9]
+                    self.level += 1
+                    print("level up, current level is:", self.level)
+            else:
+                while self.line_cleared >= setings["lines_before_next_level"][self.level]:
+                    self.line_cleared -= setings["lines_before_next_level"][self.level]
+                    self.level += 1
+                    print("level up, current level is:", self.level)
+                    if self.level >= 10:
+                        break
             for x in range(len(to_remove)):
                 for i in range(self.board_size[0]):
                     grid[i].pop(to_remove[x])
@@ -223,6 +245,9 @@ class Game:
         if self.hold_piece == -1:
             return 0,(0,0,0)
         return self.tetrominoes.get_piece(self.hold_piece, 0), self.tetrominoes.get_colors()[self.tetrominoes.index[self.hold_piece]]
+
+    def get_score(self):
+        return self.score
 
 def make_grid(size):
     grid = []
@@ -251,13 +276,9 @@ def draw(screen_size, board, board_size, colors, cell_size):
     return screen
 
 
-pygame.time.set_timer(drop_timer, drop_speed * 1000)
-# drop_speed is in seconds and the second argument is in milliseconds
+pygame.time.set_timer(drop_timer, int(drop_speed))
+
 def event_handel():
-    global das_mode, das_timer
-    das_timer -= 1
-    if das_timer < 0:
-        das_timer = 0
     event = pygame.event.get()
     keys = pygame.key.get_pressed()
     inputs = {"left": 0, "right": 0, "down": 0, "drop": 0, "rotation": 0, "switch hold": 0, "fall": 0}
@@ -274,31 +295,16 @@ def event_handel():
                 inputs["rotation"] += 1
             if e.key == pygame.K_SPACE or e.key == pygame.K_KP_ENTER:
                 inputs["switch hold"] = 1
-        if e.type == pygame.KEYUP:
-            das_timer = 0
-            das_mode = 0
+            if e.key == pygame.K_a or e.key == pygame.K_LEFT:
+                inputs["left"] = 1
+            if e.key == pygame.K_d or e.key == pygame.K_RIGHT:
+                inputs["right"] = 1
+            if e.key == pygame.K_s or e.key == pygame.K_DOWN:
+                inputs["down"] = 1
         if e.type == drop_timer:
             inputs["fall"] = 1
 
-    if (keys[pygame.K_DOWN] or keys[pygame.K_s]) and das_timer == 0:
-        inputs["down"] = 1
-
-    if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and das_timer == 0:
-        inputs["left"] = 1
-
-    if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and das_timer == 0:
-        inputs["right"] = 1
-
-    if inputs["right"] or inputs["left"] or inputs["down"]:
-        if das_mode == 0:
-            das_timer = 30
-            das_mode = 1
-        else:
-            das_timer = 6
-
     return inputs
-
-
 
 def draw_left_ui(side_size, hold, color, cell_size):
     side = pygame.Surface(side_size)
@@ -337,7 +343,6 @@ def calculate_all_sizes(screen_size, board_size):
     game_size = (cell_size * (board_size[0]+2), cell_size * (board_size[1]+2))
     side_size = ((screen_size[0] - game_size[0])//2, cell_size * (board_size[1]+2))
     return side_size, game_size, cell_size
-
 
 def draw_right_ui(side_size, next_pieces, colors, cell_size):
     side = pygame.Surface(side_size)
@@ -402,17 +407,14 @@ def draw_right_ui(side_size, next_pieces, colors, cell_size):
 
     return side
 
-
-
 game = Game((10, 20))
 side_size, game_size, cell_size = calculate_all_sizes(screen_size, (10, 20))
 das_mode = 0  # 0 = wait mode, 1 = quick tap
-das_timer = 0
 clock = pygame.time.Clock()
 
 
 while True:
-    clock.tick(60)
+    clock.tick(setings["fps"])
     screen.fill((50, 50, 50))
     # rotation += 1
     # if rotation > 3:
